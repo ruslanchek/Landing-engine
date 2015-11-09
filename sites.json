@@ -1,0 +1,30 @@
+[
+  {
+    "dir": "site1",
+    "root": "site-1",
+    "engines": {
+      "html": "jade",
+      "css": "less"
+    },
+    "autoLocale": true,
+    "defaultLocale": "ru",
+    "locales": [
+      "en",
+      "ru"
+    ]
+  },
+  {
+    "dir": "site2",
+    "root": "site-2",
+    "engines": {
+      "html": "jade",
+      "css": "less"
+    },
+    "autoLocale": true,
+    "defaultLocale": "ru",
+    "locales": [
+      "en",
+      "ru"
+    ]
+  }
+]
