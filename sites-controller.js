@@ -1,7 +1,12 @@
 var _ = require('lodash'),
-    I18n = require('i18n-2');
+    I18n = require('i18n-2'),
+    stylus = require('stylus'),
+    nib = require('nib'),
+    jeet = require('jeet'),
+    rupture = require('rupture'),
+    fs = require('fs');
 
-var SitesController = function(app, sites){
+var SitesController = function(app, sites, express){
     function getRoutesForSite(siteData){
         var routes = [],
             root = '/' + siteData.root,
@@ -51,13 +56,58 @@ var SitesController = function(app, sites){
         }
     }
 
+    function throwError(res, title, text, status){
+        var content = '';
+
+        content += '<h1>' + title + '</h1>';
+        content += '<pre>' + text + '</pre>';
+
+        return res.send(content, status);
+    }
+
+    function compileStylus(res, str, path, fn) {
+        fs.readFile(str, 'utf8', function (err, data) {
+            if (err) {
+                return throwError(res, 'Stylus parse error', err, 500);
+            }
+
+            return stylus(data)
+                .set('compress', true)
+                .use(nib())
+                .use(jeet())
+                .use(rupture())
+                .render(function(err, css){
+                    if(err){
+                        return throwError(res, 'Stylus parse error', err, 500);
+                    }
+
+                    fs.writeFile(path, css, function(err) {
+                        if(err) {
+                            return throwError(res, 'Stylus parse error', err, 500);
+                        }
+
+                        fn();
+                    });
+                });
+        });
+    }
+
     function loadSite(siteData){
         var routes = getRoutesForSite(siteData),
+            dir = __dirname + '/sites/' + siteData.dir,
+            siteRootPath = '/' + siteData.root,
             i18nConfig = {
                 locales: siteData.locales,
-                directory: __dirname + '/sites/' + siteData.dir + '/locales',
+                directory: dir + '/locales',
                 extension: '.json'
             };
+
+        app.use(siteRootPath, express.static(dir + '/public'));
+        app.use(siteRootPath, function(req, res, next){
+            compileStylus(res, dir + '/styles/main.styl', dir + '/public/styles/main.css', function(){
+                next();
+            });
+        });
 
         _.each(routes, function(route){
             app.get(route.path, function (req, res) {
@@ -78,7 +128,7 @@ var SitesController = function(app, sites){
                 i18n._locale = locale;
                 i18n._locales = getLocalesWithAttributes(siteData);
 
-                res.render(__dirname + '/sites/' + siteData.dir + '/templates/index.jade', {
+                res.render(dir + '/templates/index.jade', {
                     i18n: i18n
                 });
             });
@@ -89,7 +139,7 @@ var SitesController = function(app, sites){
 
             app.get(path, function (req, res) {
                 var source = '',
-                    langData = require(__dirname + '/sites/' + siteData.dir + '/locales/' + locale);
+                    langData = require(dir + '/locales/' + locale);
 
                 res.setHeader('content-type', 'text/javascript');
 

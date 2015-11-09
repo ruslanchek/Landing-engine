@@ -5,7 +5,7 @@ var express = require('express'),
     app = express(),
     port = process.env.PORT || config.port;
 
-var sitesController = new SitesController(app, sites);
+var sitesController = new SitesController(app, sites, express);
 sitesController.run();
 
 app.set('view engine', 'jade');

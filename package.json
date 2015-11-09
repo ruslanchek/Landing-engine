@@ -10,10 +10,15 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "autoprefixer-stylus": "^0.8.1",
     "express": "^4.13.3",
     "i18n-2": "^0.4.6",
     "jade": "^1.11.0",
+    "jeet": "^6.1.2",
     "locale": "0.0.20",
-    "lodash": "^3.10.1"
+    "lodash": "^3.10.1",
+    "nib": "^1.1.0",
+    "rupture": "^0.6.1",
+    "stylus": "^0.52.4"
   }
 }
