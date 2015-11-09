@@ -1,3 +1,6 @@
 {
-	"hello": "hello"
+	"TEST": "Test",
+	"HELLO": "Hello",
+	"CURRENT_LOCALE": "Current locale",
+	"LOCALES": "Locales"
 }
