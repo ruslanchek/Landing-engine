@@ -2,26 +2,22 @@ var _ = require('lodash'),
     I18n = require('i18n-2');
 
 var SitesController = function(app, sites){
-    function detectUserLocale(){
-        
-    }
-
     function getRoutesForSite(siteData){
         var routes = [],
             root = '/' + siteData.root,
             defaultLocale = siteData.defaultLocale;
 
-
-
         routes.push({
             path: root,
-            locale: defaultLocale
+            locale: defaultLocale,
+            detectLocale: siteData.detectLocale
         });
 
         _.each(siteData.locales, function(locale){
             routes.push({
                 path: root + '/' + locale,
-                locale: locale
+                locale: locale,
+                detectLocale: false
             });
         });
 
@@ -47,6 +43,14 @@ var SitesController = function(app, sites){
         return localesWithAttributes;
     }
 
+    function detectLocale(raw, locales){
+        var parsed = raw.substring(6, 8);
+
+        if(_.indexOf(locales, parsed) >= 0){
+            return parsed;
+        }
+    }
+
     function loadSite(siteData){
         var routes = getRoutesForSite(siteData),
             i18nConfig = {
@@ -57,12 +61,21 @@ var SitesController = function(app, sites){
 
         _.each(routes, function(route){
             app.get(route.path, function (req, res) {
-                var i18n = new I18n(i18nConfig);
+                var i18n = new I18n(i18nConfig),
+                    locale = route.locale;
 
-                i18n.setLocale(route.locale);
+                if(route.detectLocale === true) {
+                    var localeDetected = detectLocale(req.headers['accept-language'], siteData.locales);
 
-                i18n._jsSrc = getLocaleJsPath(siteData.root, route.locale);
-                i18n._locale = route.locale;
+                    if (localeDetected) {
+                        locale = localeDetected;
+                    }
+                }
+
+                i18n.setLocale(locale);
+
+                i18n._jsSrc = getLocaleJsPath(siteData.root, locale);
+                i18n._locale = locale;
                 i18n._locales = getLocalesWithAttributes(siteData);
 
                 res.render(__dirname + '/sites/' + siteData.dir + '/templates/index.jade', {

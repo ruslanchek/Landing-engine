@@ -6,8 +6,8 @@
       "html": "jade",
       "css": "less"
     },
-    "autoLocale": true,
-    "defaultLocale": "ru",
+    "detectLocale": true,
+    "defaultLocale": "en",
     "locales": [
       "en",
       "ru"
@@ -20,7 +20,7 @@
       "html": "jade",
       "css": "less"
     },
-    "autoLocale": true,
+    "detectLocale": true,
     "defaultLocale": "ru",
     "locales": [
       "en",
