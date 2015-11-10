@@ -1,9 +1,11 @@
 var _ = require('lodash'),
     I18n = require('i18n-2'),
     stylus = require('stylus'),
+    less = require('less'),
     nib = require('nib'),
     jeet = require('jeet'),
     rupture = require('rupture'),
+    autoprefixer = require('autoprefixer-stylus'),
     fs = require('fs');
 
 var SitesController = function(app, sites, express){
@@ -68,7 +70,7 @@ var SitesController = function(app, sites, express){
     function compileStylus(res, str, path, fn) {
         fs.readFile(str, 'utf8', function (err, data) {
             if (err) {
-                return throwError(res, 'Stylus parse error', err, 500);
+                return throwError(res, 'Stylus parse error: readFile', err, 500);
             }
 
             return stylus(data)
@@ -76,19 +78,44 @@ var SitesController = function(app, sites, express){
                 .use(nib())
                 .use(jeet())
                 .use(rupture())
+                .use(autoprefixer())
                 .render(function(err, css){
                     if(err){
-                        return throwError(res, 'Stylus parse error', err, 500);
+                        return throwError(res, 'Stylus parse error: render', err, 500);
                     }
 
                     fs.writeFile(path, css, function(err) {
                         if(err) {
-                            return throwError(res, 'Stylus parse error', err, 500);
+                            return throwError(res, 'Stylus parse error: writeFile', err, 500);
                         }
 
                         fn();
                     });
                 });
+        });
+    }
+
+    function compileLess(res, str, path, fn){
+        fs.readFile(str, 'utf8', function (err, data) {
+            if (err) {
+                return throwError(res, 'Stylus parse error: readFile', err, 500);
+            }
+
+            return less.render(data, {
+
+            }, function(err, output) {
+                if(err){
+                    return throwError(res, 'Stylus parse error: render', err, 500);
+                }
+
+                fs.writeFile(path, output.css, function(err) {
+                    if(err) {
+                        return throwError(res, 'Stylus parse error: writeFile', err, 500);
+                    }
+
+                    fn();
+                });
+            });
         });
     }
 
@@ -104,9 +131,19 @@ var SitesController = function(app, sites, express){
 
         app.use(siteRootPath, express.static(dir + '/public'));
         app.use(siteRootPath, function(req, res, next){
-            compileStylus(res, dir + '/styles/main.styl', dir + '/public/styles/main.css', function(){
-                next();
-            });
+            switch (siteData.engines.css) {
+                case 'styl' : {
+                    compileStylus(res, dir + '/styles/main.styl', dir + '/public/styles/main.css', function(){
+                        next();
+                    });
+                } break;
+
+                case 'less' : {
+                    compileLess(res, dir + '/styles/main.less', dir + '/public/styles/main.css', function(){
+                        next();
+                    });
+                } break;
+            }
         });
 
         _.each(routes, function(route){
