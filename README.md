@@ -3,6 +3,7 @@ Version 0.2
 
 ## Installation
 Clone this repository
+
     npm install
     DEV=1 node server // For developement
     node server // For production
