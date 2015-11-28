@@ -4,9 +4,9 @@ var express = require('express'),
 	SitesController = require('./sites-controller'),
 	app = express(),
 	port = process.env.PORT || config.port,
-	dev = process.env.DEV || false;
+	isDev = process.env.DEV || false;
 
-var sitesController = new SitesController(app, sites, express, dev);
+var sitesController = new SitesController(app, sites, express, isDev);
 sitesController.run();
 
 app.set('view engine', 'jade');

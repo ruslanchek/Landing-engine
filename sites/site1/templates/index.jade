@@ -13,4 +13,7 @@ html(lang=i18n.locale)
         h2 #{i18n.__('LOCALES')}
         ul
             each locale in i18n._locales
-                li: a(href=locale.path)= locale.name
+                li
+                    a(href=locale.path) #{locale.name}
+                    if locale.current
+                        span&nbsp;#{i18n.__('CURRENT_LOCALE')}

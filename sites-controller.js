@@ -8,8 +8,8 @@ var _ = require('lodash'),
 	autoprefixer = require('autoprefixer-stylus'),
 	fs = require('fs');
 
-var SitesController = function(app, sites, express, dev) {
-	var production = !dev;
+var SitesController = function(app, sites, express, isDev) {
+	var isProduction = !isDev;
 
 	function getRoutesForSite(siteData) {
 		var routes = [],
@@ -37,13 +37,14 @@ var SitesController = function(app, sites, express, dev) {
 		return '/' + root + '/' + locale + '/locale.js';
 	}
 
-	function getLocalesWithAttributes(siteData) {
+	function getLocalesWithAttributes(siteData, currentLocale) {
 		var localesWithAttributes = [];
 
 		_.each(siteData.locales, function(locale) {
 			var localeObject = {
 				path: '/' + siteData.root + '/' + locale,
-				name: locale
+				name: locale,
+				current: currentLocale == locale
 			};
 
 			localesWithAttributes.push(localeObject);
@@ -76,7 +77,7 @@ var SitesController = function(app, sites, express, dev) {
 			}
 
 			return stylus(data)
-				.set('compress', production)
+				.set('compress', isProduction)
 				.use(nib())
 				.use(jeet())
 				.use(rupture())
@@ -104,7 +105,7 @@ var SitesController = function(app, sites, express, dev) {
 			}
 
 			var renderOptions = {
-                
+
 			};
 
 			return less.render(data, renderOptions, function(err, output) {
@@ -171,7 +172,7 @@ var SitesController = function(app, sites, express, dev) {
 
 				i18n._jsSrc = getLocaleJsPath(siteData.root, locale);
 				i18n._locale = locale;
-				i18n._locales = getLocalesWithAttributes(siteData);
+				i18n._locales = getLocalesWithAttributes(siteData, locale);
 
 				res.render(dir + '/templates/index.jade', {
 					i18n: i18n
