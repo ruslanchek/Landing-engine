@@ -1,5 +1,17 @@
 # The Landing Engine
-Version 0.11
+Version 0.2
+
+
+## Features
+- Less
+- Stylus
+- Jade
+- Autoprefixer
+- Minification
+- Live reload
+- Caching
+- i18n
+
 
 ## Browser API
 | Param name | Type | Description |
@@ -17,20 +29,31 @@ Version 0.11
 | **i18n._jsDictSrc**    | String    | JavaScript source of current locale dictionary |
 | **rootDir**        | String    | Root page dir |
 
-## Config example
+
+## Sites JSON config example
+    // ./sites.json
+    [
+        {
+            "dir": "site2",
+            "root": "site-2",
+            "engines": {
+                "html": "jade",
+                "css": "less"
+                },
+            "detectLocale": true,
+            "defaultLocale": "ru",
+            "locales": [
+                "en",
+                "ru"
+            ]
+        },
+        ...
+    ]
+
+## Server config
+    // ./config.json
     {
-        "dir": "site2",
-        "root": "site-2",
-        "engines": {
-            "html": "jade",
-            "css": "less"
-            },
-        "detectLocale": true,
-        "defaultLocale": "ru",
-        "locales": [
-            "en",
-            "ru"
-        ]
+        "port": 3000
     }
 
 ## Page markup example (Jade)
@@ -55,13 +78,15 @@ Version 0.11
                             span&nbsp;#{i18n.__('CURRENT_LOCALE')}
 
 ## Site file structure example
-    /sites
+    ./sites
         /YOUR_SITE_NAME
+            /_cache
+            /_public
+            /assets
             /js
             /locales
                 /en.json
                 /ru.json
-            /public
             /styles
                 /main.YOUR_PROCESSOR_FILE_EXTENSION
             /templates

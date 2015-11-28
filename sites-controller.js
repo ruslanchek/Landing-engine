@@ -7,8 +7,10 @@ var _ = require('lodash'),
     rupture = require('rupture'),
     autoprefixer = require('autoprefixer-stylus'),
     livereload = require('livereload'),
-	minify = require('express-minify'),
-    fs = require('fs');
+    minify = require('express-minify'),
+    uglifyJs = require('uglify-js'),
+    chokidar = require('chokidar'),
+    fs = require('fs-extra');
 
 var SitesController = function(app, sites, express, isDev) {
     var isProduction = !isDev;
@@ -20,7 +22,21 @@ var SitesController = function(app, sites, express, isDev) {
                 'sass',
                 'styl',
                 'jade',
-                'json'
+                'json',
+                'png',
+                'svg',
+                'jpg',
+                'jpeg',
+                'gif',
+                'ttf',
+                'ico',
+                'woff',
+                'webm',
+                'mp4',
+                'mov',
+                'mp3',
+                'wav',
+                'eot'
             ]
         });
     }
@@ -81,11 +97,35 @@ var SitesController = function(app, sites, express, isDev) {
         content += '<h1>' + title + '</h1>';
         content += '<pre>' + text + '</pre>';
 
-        return res.send(content, status);
+        return res.status(status).send(content);
     }
 
-    function compileStylus(res, str, path, fn) {
-        fs.readFile(str, 'utf8', function(err, data) {
+    function cimpileJs(res, source, destination, fn) {
+        var result = uglifyJs.minify(source, {
+            mangle: false,
+            compress: {
+                sequences: false,
+                dead_code: false,
+                conditionals: false,
+                booleans: false,
+                unused: false,
+                if_return: false,
+                join_vars: false,
+                drop_console: false
+            }
+        });
+
+        fs.writeFile(destination, result.code, function(err) {
+            if (err) {
+                return throwError(res, 'JS parse error: writeFile', err, 500);
+            }
+
+            fn();
+        });
+    }
+
+    function compileStylus(res, source, destination, fn) {
+        fs.readFile(source, 'utf8', function(err, data) {
             if (err) {
                 return throwError(res, 'Stylus parse error: readFile', err, 500);
             }
@@ -100,7 +140,7 @@ var SitesController = function(app, sites, express, isDev) {
                         return throwError(res, 'Stylus parse error: render', err, 500);
                     }
 
-                    fs.writeFile(path, css, function(err) {
+                    fs.writeFile(destination, css, function(err) {
                         if (err) {
                             return throwError(res, 'Stylus parse error: writeFile', err, 500);
                         }
@@ -111,8 +151,8 @@ var SitesController = function(app, sites, express, isDev) {
         });
     }
 
-    function compileLess(res, str, path, fn) {
-        fs.readFile(str, 'utf8', function(err, data) {
+    function compileLess(res, source, destination, fn) {
+        fs.readFile(source, 'utf8', function(err, data) {
             if (err) {
                 return throwError(res, 'Less parse error: readFile', err, 500);
             }
@@ -126,7 +166,7 @@ var SitesController = function(app, sites, express, isDev) {
                     return throwError(res, 'Less parse error: render', err, 500);
                 }
 
-                fs.writeFile(path, output.css, function(err) {
+                fs.writeFile(destination, output.css, function(err) {
                     if (err) {
                         return throwError(res, 'Less parse error: writeFile', err, 500);
                     }
@@ -137,13 +177,22 @@ var SitesController = function(app, sites, express, isDev) {
         });
     }
 
-	function getMinifyCacheDir(dir){
-		if(isProduction === true){
-			return dir + '/cache';
-		} else {
-			return false;
-		}
-	}
+    function getMinifyCacheDir(dir) {
+        if (isProduction === true) {
+            return dir + '/_cache';
+        } else {
+            return false;
+        }
+    }
+
+    function watcherProcess(dir){
+        var options = {};
+
+        fs.copy(dir + '/assets/fonts', dir + '/_public/fonts', options);
+        fs.copy(dir + '/assets/img', dir + '/_public/img', options);
+        fs.copy(dir + '/assets/JSON', dir + '/_public/JSON', options);
+        fs.copy(dir + '/assets/video', dir + '/_public/video', options);
+    }
 
     function loadSite(siteData) {
         var routes = getRoutesForSite(siteData),
@@ -157,11 +206,33 @@ var SitesController = function(app, sites, express, isDev) {
 
         if (isDev === true) {
             lrServer.watch([
+                dir + '/assets',
                 dir + '/js',
-                dir + '/styles',
                 dir + '/locales',
+                dir + '/styles',
                 dir + '/templates'
             ]);
+
+            var watcher = chokidar.watch(dir + '/assets', {
+                ignored: /[\/\\]\./, persistent: true
+            });
+
+            watcher
+                .on('add', function(path) {
+                    watcherProcess(dir);
+                })
+                .on('addDir', function(path) {
+                    watcherProcess(dir);
+                })
+                .on('change', function(path) {
+                    watcherProcess(dir);
+                })
+                .on('unlink', function(path) {
+                    watcherProcess(dir);
+                })
+                .on('unlinkDir', function(path) {
+                    watcherProcess(dir);
+                });
         }
 
         app.use(minify({
@@ -175,26 +246,28 @@ var SitesController = function(app, sites, express, isDev) {
             whitelist: null
         }));
 
-        app.use(siteRootPath, express.static(dir + '/public'));
+        app.use(siteRootPath, express.static(dir + '/_public'));
         app.use(siteRootPath, function(req, res, next) {
             if (isDev === true) {
-                switch (siteData.engines.css) {
-                    case 'styl':
-                        {
-                            compileStylus(res, dir + '/styles/main.styl', dir + '/public/styles/main.css', function() {
-                                next();
-                            });
-                        }
-                        break;
+                cimpileJs(res, dir + '/js/app.js', dir + '/_public/js/app.js', function() {
+                    switch (siteData.engines.css) {
+                        case 'styl':
+                            {
+                                compileStylus(res, dir + '/styles/main.styl', dir + '/_public/styles/main.css', function() {
+                                    next();
+                                });
+                            }
+                            break;
 
-                    case 'less':
-                        {
-                            compileLess(res, dir + '/styles/main.less', dir + '/public/styles/main.css', function() {
-                                next();
-                            });
-                        }
-                        break;
-                }
+                        case 'less':
+                            {
+                                compileLess(res, dir + '/styles/main.less', dir + '/_public/styles/main.css', function() {
+                                    next();
+                                });
+                            }
+                            break;
+                    }
+                })
             } else {
                 next();
             }

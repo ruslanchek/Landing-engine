@@ -1,6 +1,6 @@
 {
 	"TEST": "Test",
-	"HELLO": "Hello",
+	"HELLO": "Hello, world!",
 	"CURRENT_LOCALE": "Current locale",
 	"LOCALES": "Locales",
 	"ROOT": "Site root path"
