@@ -4,24 +4,10 @@
     "root": "site-1",
     "engines": {
       "html": "jade",
-      "css": "less"
+      "css": "styl"
     },
     "detectLocale": true,
     "defaultLocale": "en",
-    "locales": [
-      "en",
-      "ru"
-    ]
-  },
-  {
-    "dir": "site2",
-    "root": "site-2",
-    "engines": {
-      "html": "jade",
-      "css": "less"
-    },
-    "detectLocale": true,
-    "defaultLocale": "ru",
     "locales": [
       "en",
       "ru"

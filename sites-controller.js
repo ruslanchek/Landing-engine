@@ -1,214 +1,260 @@
 var _ = require('lodash'),
-	I18n = require('i18n-2'),
-	stylus = require('stylus'),
-	less = require('less'),
-	nib = require('nib'),
-	jeet = require('jeet'),
-	rupture = require('rupture'),
-	autoprefixer = require('autoprefixer-stylus'),
-	fs = require('fs');
+    I18n = require('i18n-2'),
+    stylus = require('stylus'),
+    less = require('less'),
+    nib = require('nib'),
+    jeet = require('jeet'),
+    rupture = require('rupture'),
+    autoprefixer = require('autoprefixer-stylus'),
+    livereload = require('livereload'),
+	minify = require('express-minify'),
+    fs = require('fs');
 
 var SitesController = function(app, sites, express, isDev) {
-	var isProduction = !isDev;
+    var isProduction = !isDev;
 
-	function getRoutesForSite(siteData) {
-		var routes = [],
-			root = '/' + siteData.root,
-			defaultLocale = siteData.defaultLocale;
+    if (isDev === true) {
+        var lrServer = livereload.createServer({
+            exts: [
+                'less',
+                'sass',
+                'styl',
+                'jade',
+                'json'
+            ]
+        });
+    }
 
-		routes.push({
-			path: root,
-			locale: defaultLocale,
-			detectLocale: siteData.detectLocale
-		});
+    function getRoutesForSite(siteData) {
+        var routes = [],
+            root = '/' + siteData.root,
+            defaultLocale = siteData.defaultLocale;
 
-		_.each(siteData.locales, function(locale) {
-			routes.push({
-				path: root + '/' + locale,
-				locale: locale,
-				detectLocale: false
-			});
-		});
+        routes.push({
+            path: root,
+            locale: defaultLocale,
+            detectLocale: siteData.detectLocale
+        });
 
-		return routes;
-	}
+        _.each(siteData.locales, function(locale) {
+            routes.push({
+                path: root + '/' + locale,
+                locale: locale,
+                detectLocale: false
+            });
+        });
 
-	function getLocaleJsPath(root, locale) {
-		return '/' + root + '/' + locale + '/locale.js';
-	}
+        return routes;
+    }
 
-	function getLocalesWithAttributes(siteData, currentLocale) {
-		var localesWithAttributes = [];
+    function getLocaleJsPath(root, locale) {
+        return '/' + root + '/' + locale + '/locale.js';
+    }
 
-		_.each(siteData.locales, function(locale) {
-			var localeObject = {
-				path: '/' + siteData.root + '/' + locale,
-				name: locale,
-				current: currentLocale == locale
-			};
+    function getLocalesWithAttributes(siteData, currentLocale) {
+        var localesWithAttributes = [];
 
-			localesWithAttributes.push(localeObject);
-		});
+        _.each(siteData.locales, function(locale) {
+            var localeObject = {
+                path: '/' + siteData.root + '/' + locale,
+                name: locale,
+                current: currentLocale == locale
+            };
 
-		return localesWithAttributes;
-	}
+            localesWithAttributes.push(localeObject);
+        });
 
-	function detectLocale(raw, locales) {
-		var parsed = raw.substring(6, 8);
+        return localesWithAttributes;
+    }
 
-		if(_.indexOf(locales, parsed) >= 0) {
-			return parsed;
+    function detectLocale(raw, locales) {
+        var parsed = raw.substring(6, 8);
+
+        if (_.indexOf(locales, parsed) >= 0) {
+            return parsed;
+        }
+    }
+
+    function throwError(res, title, text, status) {
+        var content = '';
+
+        content += '<h1>' + title + '</h1>';
+        content += '<pre>' + text + '</pre>';
+
+        return res.send(content, status);
+    }
+
+    function compileStylus(res, str, path, fn) {
+        fs.readFile(str, 'utf8', function(err, data) {
+            if (err) {
+                return throwError(res, 'Stylus parse error: readFile', err, 500);
+            }
+
+            return stylus(data)
+                .use(nib())
+                .use(jeet())
+                .use(rupture())
+                .use(autoprefixer())
+                .render(function(err, css) {
+                    if (err) {
+                        return throwError(res, 'Stylus parse error: render', err, 500);
+                    }
+
+                    fs.writeFile(path, css, function(err) {
+                        if (err) {
+                            return throwError(res, 'Stylus parse error: writeFile', err, 500);
+                        }
+
+                        fn();
+                    });
+                });
+        });
+    }
+
+    function compileLess(res, str, path, fn) {
+        fs.readFile(str, 'utf8', function(err, data) {
+            if (err) {
+                return throwError(res, 'Less parse error: readFile', err, 500);
+            }
+
+            var renderOptions = {
+
+            };
+
+            return less.render(data, renderOptions, function(err, output) {
+                if (err) {
+                    return throwError(res, 'Less parse error: render', err, 500);
+                }
+
+                fs.writeFile(path, output.css, function(err) {
+                    if (err) {
+                        return throwError(res, 'Less parse error: writeFile', err, 500);
+                    }
+
+                    fn();
+                });
+            });
+        });
+    }
+
+	function getMinifyCacheDir(dir){
+		if(isProduction === true){
+			return dir + '/cache';
+		} else {
+			return false;
 		}
 	}
 
-	function throwError(res, title, text, status) {
-		var content = '';
+    function loadSite(siteData) {
+        var routes = getRoutesForSite(siteData),
+            dir = __dirname + '/sites/' + siteData.dir,
+            siteRootPath = '/' + siteData.root,
+            i18nConfig = {
+                locales: siteData.locales,
+                directory: dir + '/locales',
+                extension: '.json'
+            };
 
-		content += '<h1>' + title + '</h1>';
-		content += '<pre>' + text + '</pre>';
+        if (isDev === true) {
+            lrServer.watch([
+                dir + '/js',
+                dir + '/styles',
+                dir + '/locales',
+                dir + '/templates'
+            ]);
+        }
 
-		return res.send(content, status);
-	}
+        app.use(minify({
+            js_match: /javascript/,
+            css_match: /css/,
+            sass_match: /scss/,
+            less_match: /less/,
+            stylus_match: /stylus/,
+            cache: getMinifyCacheDir(dir),
+            blacklist: [/\.min\.(css|js)$/],
+            whitelist: null
+        }));
 
-	function compileStylus(res, str, path, fn) {
-		fs.readFile(str, 'utf8', function(err, data) {
-			if(err) {
-				return throwError(res, 'Stylus parse error: readFile', err, 500);
-			}
+        app.use(siteRootPath, express.static(dir + '/public'));
+        app.use(siteRootPath, function(req, res, next) {
+            if (isDev === true) {
+                switch (siteData.engines.css) {
+                    case 'styl':
+                        {
+                            compileStylus(res, dir + '/styles/main.styl', dir + '/public/styles/main.css', function() {
+                                next();
+                            });
+                        }
+                        break;
 
-			return stylus(data)
-				.set('compress', isProduction)
-				.use(nib())
-				.use(jeet())
-				.use(rupture())
-				.use(autoprefixer())
-				.render(function(err, css) {
-					if(err) {
-						return throwError(res, 'Stylus parse error: render', err, 500);
-					}
+                    case 'less':
+                        {
+                            compileLess(res, dir + '/styles/main.less', dir + '/public/styles/main.css', function() {
+                                next();
+                            });
+                        }
+                        break;
+                }
+            } else {
+                next();
+            }
+        });
 
-					fs.writeFile(path, css, function(err) {
-						if(err) {
-							return throwError(res, 'Stylus parse error: writeFile', err, 500);
-						}
+        _.each(routes, function(route) {
+            app.get(route.path, function(req, res) {
+                var i18n = new I18n(i18nConfig),
+                    locale = route.locale;
 
-						fn();
-					});
-				});
-		});
-	}
+                if (route.detectLocale === true) {
+                    var localeDetected = detectLocale(req.headers['accept-language'], siteData.locales);
 
-	function compileLess(res, str, path, fn) {
-		fs.readFile(str, 'utf8', function(err, data) {
-			if(err) {
-				return throwError(res, 'Less parse error: readFile', err, 500);
-			}
+                    if (localeDetected) {
+                        locale = localeDetected;
+                    }
+                }
 
-			var renderOptions = {
+                i18n.setLocale(locale);
 
-			};
+                i18n._jsDictSrc = getLocaleJsPath(siteData.root, locale);
+                i18n._locale = locale;
+                i18n._locales = getLocalesWithAttributes(siteData, locale);
 
-			return less.render(data, renderOptions, function(err, output) {
-				if(err) {
-					return throwError(res, 'Less parse error: render', err, 500);
-				}
+                res.render(dir + '/templates/index.jade', {
+                    i18n: i18n,
+                    rootDir: '/' + siteData.root
+                });
+            });
+        });
 
-				fs.writeFile(path, output.css, function(err) {
-					if(err) {
-						return throwError(res, 'Less parse error: writeFile', err, 500);
-					}
+        _.each(siteData.locales, function(locale) {
+            var path = getLocaleJsPath(siteData.root, locale);
 
-					fn();
-				});
-			});
-		});
-	}
+            app.get(path, function(req, res) {
+                var source = '',
+                    langData = require(dir + '/locales/' + locale);
 
-	function loadSite(siteData) {
-		var routes = getRoutesForSite(siteData),
-			dir = __dirname + '/sites/' + siteData.dir,
-			siteRootPath = '/' + siteData.root,
-			i18nConfig = {
-				locales: siteData.locales,
-				directory: dir + '/locales',
-				extension: '.json'
-			};
+                res.setHeader('content-type', 'text/javascript');
 
-		app.use(siteRootPath, express.static(dir + '/public'));
-		app.use(siteRootPath, function(req, res, next) {
-			switch(siteData.engines.css) {
-				case 'styl':
-					{
-						compileStylus(res, dir + '/styles/main.styl', dir + '/public/styles/main.css', function() {
-							next();
-						});
-					}
-					break;
+                source += 'window.i18n = ';
+                source += JSON.stringify(langData);
+                source += ';';
 
-				case 'less':
-					{
-						compileLess(res, dir + '/styles/main.less', dir + '/public/styles/main.css', function() {
-							next();
-						});
-					}
-					break;
-			}
-		});
+                res.end(source);
+            });
+        });
+    }
 
-		_.each(routes, function(route) {
-			app.get(route.path, function(req, res) {
-				var i18n = new I18n(i18nConfig),
-					locale = route.locale;
+    function setRoutes() {
+        _.each(sites, function(siteData) {
+            loadSite(siteData);
+        });
+    }
 
-				if(route.detectLocale === true) {
-					var localeDetected = detectLocale(req.headers['accept-language'], siteData.locales);
+    function run() {
+        setRoutes();
+    }
 
-					if(localeDetected) {
-						locale = localeDetected;
-					}
-				}
-
-				i18n.setLocale(locale);
-
-				i18n._jsSrc = getLocaleJsPath(siteData.root, locale);
-				i18n._locale = locale;
-				i18n._locales = getLocalesWithAttributes(siteData, locale);
-
-				res.render(dir + '/templates/index.jade', {
-					i18n: i18n
-				});
-			});
-		});
-
-		_.each(siteData.locales, function(locale) {
-			var path = getLocaleJsPath(siteData.root, locale);
-
-			app.get(path, function(req, res) {
-				var source = '',
-					langData = require(dir + '/locales/' + locale);
-
-				res.setHeader('content-type', 'text/javascript');
-
-				source += 'window.i18n = ';
-				source += JSON.stringify(langData);
-				source += ';';
-
-				res.end(source);
-			});
-		});
-	}
-
-	function setRoutes() {
-		_.each(sites, function(siteData) {
-			loadSite(siteData);
-		});
-	}
-
-	function run() {
-		setRoutes();
-	}
-
-	this.run = run;
+    this.run = run;
 };
 
 module.exports = SitesController;

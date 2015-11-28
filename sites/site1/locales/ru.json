@@ -2,5 +2,6 @@
 	"TEST": "Тест",
 	"HELLO": "Привет",
 	"CURRENT_LOCALE": "Текущий язык",
-	"LOCALES": "Языки"
+	"LOCALES": "Языки",
+	"ROOT": "Путь к сайту"
 }

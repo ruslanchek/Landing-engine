@@ -4,7 +4,7 @@ var express = require('express'),
 	SitesController = require('./sites-controller'),
 	app = express(),
 	port = process.env.PORT || config.port,
-	isDev = process.env.DEV || false;
+	isDev = process.env.DEV == 1 || false;
 
 var sitesController = new SitesController(app, sites, express, isDev);
 sitesController.run();

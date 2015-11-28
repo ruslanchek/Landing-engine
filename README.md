@@ -1,4 +1,4 @@
-# The landing engine
+# The Landing Engine
 Version 0.11
 
 ## Browser API
@@ -8,14 +8,14 @@ Version 0.11
 
 
 ## Jade templates API
-### i18n object
 
 | Param name | Type | Description |
 |---|---|---|
-| **__**        | Function  | Translating function, takes only one argument – the dictionary keyword |
-| **_locale**   | String    | Current locale in ISO 639-1 format |
-| **_locales**  | Array     | Array of available locales, each have<br><code>name</code> String (ISO 639-1 code)<br> <code>path</code> String (/YOUR_SITE_NAME/en)<br><code>current</code> Boolean |
-| **_jsSrc**    | String    | JavaScript source of current locale dictionary |
+| **i18n.__**        | Function  | Translating function, takes only one argument – the dictionary keyword |
+| **i18n._locale**   | String    | Current locale in ISO 639-1 format |
+| **i18n._locales**  | Array     | Array of available locales, each have<br><code>name</code> String (ISO 639-1 code)<br> <code>path</code> String (/YOUR_SITE_NAME/en)<br><code>current</code> Boolean |
+| **i18n._jsDictSrc**    | String    | JavaScript source of current locale dictionary |
+| **rootDir**        | String    | Root page dir |
 
 ## Config example
     {
